@@ -22,7 +22,6 @@ Associated Filename: main.c
 #include <CL/opencl.h>
 #include <CL/cl_ext.h>
 #include "xclhal2.h"
-//#include <iostream>
 ////////////////////////////////////////////////////////////////////////////////
 
 #define NUM_WORKGROUPS (1)
@@ -71,7 +70,7 @@ int main(int argc, char* argv[])
 
     cl_int err;                         // error code returned from api calls
     int check_status = 0;
-    const uint number_of_words = 16;    // 16KB of data
+    const uint number_of_words = 3;    // 16KB of data
 
     cl_platform_id platform_id;         // platform id
     cl_device_id device_id;             // compute device id
@@ -82,7 +81,7 @@ int main(int argc, char* argv[])
 
     char cl_platform_vendor[1001];
     const char* target_device_name =  argv[2];
-    uint64_t h_puf_output[MAX_LENGTH];       // host memory for output vector
+    uint h_puf_output[MAX_LENGTH];       // host memory for output vector
     cl_mem puf;                         // device memory used for a vector
 
     if (argc != 3) {
@@ -91,10 +90,9 @@ int main(int argc, char* argv[])
     }
 
     // Fill our data sets with pattern
-    int i = 0;
-    for(i = 0; i < number_of_words/2; i++) {
-        h_puf_output[i] = 9999999; 
-        printf("no.%d original: %d \n",i, h_puf_output[i]);
+    for(uint i = 0; i < number_of_words; i++) {
+        h_puf_output[i] = 0; 
+        // printf("no.%d original: %d \n",i, h_puf_output[i]);
     }
 
     // Get all platforms and then select Xilinx platform
@@ -110,7 +108,7 @@ int main(int argc, char* argv[])
     printf("INFO: Found %d platforms\n", platform_count);
 
     // Find Xilinx Plaftorm
-    for (unsigned int iplat=0; iplat<platform_count; iplat++) {
+    for (uint iplat=0; iplat<platform_count; iplat++) {
         err = clGetPlatformInfo(platforms[iplat], CL_PLATFORM_VENDOR, 1000, (void *)cl_platform_vendor,NULL);
         if (err != CL_SUCCESS) {
 	    printf(  "%s", platforms[iplat]);	
@@ -129,7 +127,7 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-   // Get Accelerator compute device
+    // Get Accelerator compute device
     cl_uint num_devices;
     unsigned int device_found = 0;
     cl_device_id devices[16];  // compute device id
@@ -181,7 +179,7 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-   int status;
+    int status;
 
     // Create Program Objects
     // Load binary from disk
@@ -226,7 +224,7 @@ int main(int argc, char* argv[])
 
     // Create the compute kernel in the program we wish to run
     //
-    kernel = clCreateKernel(program, "fpga_kernel_rtl_kernel", &err);
+    kernel = clCreateKernel(program, "fpga_puf_kernel", &err);
     if (!kernel || err != CL_SUCCESS) {
         printf("Error: Failed to create compute kernel!\n");
         printf("Test failed\n");
@@ -251,8 +249,9 @@ int main(int argc, char* argv[])
     // kernel_puf(int scalar00, uint* puf)
     err = 0;
 
-    // set 1 to triger
-    cl_uint trig = 3;
+    // Set 1 to triger
+    // NOTE: in this version, whatever the trig be set, puf can work well
+    cl_uint trig = 1;
     err |= clSetKernelArg(kernel, 0, sizeof(cl_uint), &trig );
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &puf); 
 
@@ -264,7 +263,6 @@ int main(int argc, char* argv[])
 
     // Execute the kernel over the entire range of our 1d input data set
     // using the maximum number of work group items for this device
-
     err = clEnqueueTask(commands, kernel, 0, NULL, NULL);
     if (err) {
             printf("Error: Failed to execute kernel! %d\n", err);
@@ -286,30 +284,19 @@ int main(int argc, char* argv[])
     clWaitForEvents(1, &readevent);
     
     // Check Results
-    for (uint i = 0; i < number_of_words/2; i++) {
-        printf("no.%d PUF: %d \n", i, h_puf_output[i]);
+    for (uint i = 0; i < number_of_words; i++) {
+        printf("no.%d PUF: %u \n", i, h_puf_output[i]);
         check_status = 0;
     }
-
 
     // --------------------------------------------------------------------------
     // Shutdown and cleanup
     // -------------------------------------------------------------------------- 
-    // printf("ReleaseMemObject start\n");
     clReleaseMemObject(puf);
-    printf("ReleaseMemObject END\n");
-    
     clReleaseProgram(program);
-    printf("clReleaseProgram END\n");
-
     clReleaseKernel(kernel);
-    printf("clReleaseKernel END\n");
-
-    clReleaseCommandQueue(commands);
-    printf("clReleaseCommandQueue END\n");
-    
+    clReleaseCommandQueue(commands);  
     clReleaseContext(context);
-    printf("clReleaseContext END\n");
 
     if (check_status) {
         printf("INFO: Test failed\n");
@@ -318,6 +305,4 @@ int main(int argc, char* argv[])
         printf("INFO: Test completed successfully.\n");
         return EXIT_SUCCESS;
     }
-
-
 } // end of main

@@ -3,7 +3,7 @@
 // Copyright 1986-2021 Xilinx, Inc. All Rights Reserved.
 // ==============================================================
 `timescale 1ns/1ps
-module fpga_puf_kernel_0_control_s_axi
+module fpga_puf_kernel_control_s_axi
 #(parameter
     C_S_AXI_ADDR_WIDTH = 6,
     C_S_AXI_DATA_WIDTH = 32

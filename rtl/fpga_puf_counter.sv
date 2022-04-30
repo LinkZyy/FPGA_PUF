@@ -82,4 +82,3 @@ end
 
 endmodule : fpga_puf_counter
 `default_nettype wire
-
